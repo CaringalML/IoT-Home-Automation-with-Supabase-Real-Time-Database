@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Allow crawling of main pages
+Allow: /auth
+Allow: /dashboard
+
+# Disallow sensitive routes
+Disallow: /reset-password
+Disallow: /api/
+Disallow: /admin/
+
+# Sitemap location
+Sitemap: https://iot-home-automation-c1e96.firebaseapp.com/sitemap.xml
+
+# Crawl delay to be respectful
+Crawl-delay: 1

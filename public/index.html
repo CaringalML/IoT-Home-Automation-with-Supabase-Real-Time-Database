@@ -4,15 +4,92 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="React Authentication System with Supabase"
-    />
-    <title>Firebase Clone - React Auth</title>
+    
+    <!-- Security Meta Tags -->
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()">
+    
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; 
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; 
+                   style-src 'self' 'unsafe-inline'; 
+                   img-src 'self' data: https:; 
+                   font-src 'self' data:; 
+                   connect-src 'self' https://*.supabase.co wss://*.supabase.co; 
+                   media-src 'self'; 
+                   object-src 'none'; 
+                   base-uri 'self'; 
+                   form-action 'self'">
+    
+    <!-- PWA and App Meta Tags -->
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="SmartHub Pro - Professional IoT Home Automation Control Center. Securely manage and monitor your smart home devices with advanced controls and real-time analytics." />
+    <meta name="keywords" content="IoT, smart home, home automation, device control, ESP32, smart devices, home security" />
+    <meta name="author" content="SmartHub Pro" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SmartHub Pro - IoT Home Automation" />
+    <meta property="og:description" content="Professional IoT Home Automation Control Center for smart device management" />
+    <meta property="og:url" content="https://iot-home-automation-c1e96.firebaseapp.com" />
+    <meta property="og:site_name" content="SmartHub Pro" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SmartHub Pro - IoT Home Automation" />
+    <meta name="twitter:description" content="Professional IoT Home Automation Control Center" />
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    
+    <!-- Manifest for PWA -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://iot-home-automation-c1e96.firebaseapp.com" />
+    
+    <!-- DNS Prefetch for Performance -->
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    
+    <title>SmartHub Pro - IoT Home Automation Control Center</title>
+    
+    <!-- Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "SmartHub Pro",
+      "description": "Professional IoT Home Automation Control Center",
+      "url": "https://iot-home-automation-c1e96.firebaseapp.com",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Web Browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "SmartHub Pro"
+      }
+    }
+    </script>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div style="text-align: center; padding: 2rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <h1>🏠 SmartHub Pro</h1>
+        <p>You need to enable JavaScript to run this IoT home automation application.</p>
+        <p>Please enable JavaScript in your browser settings and refresh the page.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
   </body>
 </html>
