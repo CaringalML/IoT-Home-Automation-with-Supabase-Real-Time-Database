@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import './Dashboard.css'
@@ -28,14 +28,16 @@ const Dashboard = () => {
     active: 0
   })
 
-  useEffect(() => {
-    if (user) {
-      fetchDevices()
-      subscribeToDeviceChanges()
-    }
-  }, [user])
+  const updateStats = useCallback((deviceList) => {
+    setStats({
+      total: deviceList.length,
+      online: deviceList.filter(d => d.is_online).length,
+      active: deviceList.filter(d => d.status === 1).length
+    })
+  }, [])
 
-  const fetchDevices = async () => {
+  const fetchDevices = useCallback(async () => {
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from('devices')
@@ -52,9 +54,11 @@ const Dashboard = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, updateStats])
 
-  const subscribeToDeviceChanges = () => {
+  const subscribeToDeviceChanges = useCallback(() => {
+    if (!user) return;
+
     const channel = supabase
       .channel('devices_changes')
       .on(
@@ -75,15 +79,17 @@ const Dashboard = () => {
     return () => {
       supabase.removeChannel(channel)
     }
-  }
+  }, [user, fetchDevices])
 
-  const updateStats = (deviceList) => {
-    setStats({
-      total: deviceList.length,
-      online: deviceList.filter(d => d.is_online).length,
-      active: deviceList.filter(d => d.status === 1).length
-    })
-  }
+
+  useEffect(() => {
+    if (user) {
+      fetchDevices()
+      const cleanup = subscribeToDeviceChanges()
+      return cleanup
+    }
+  }, [user, fetchDevices, subscribeToDeviceChanges])
+
 
   const handleAddDevice = async () => {
     
