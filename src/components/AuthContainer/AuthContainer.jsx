@@ -13,14 +13,22 @@ const AuthContainer = () => {
   return (
     <div className="auth-container">
       <div className="auth-background">
+        {/* Floating particles for IoT network effect */}
+        <div className="particle"></div>
+        <div className="particle"></div>
+        <div className="particle"></div>
+        
         <div className="auth-card">
           <div className="auth-header">
             <div className="auth-logo">
-              <div className="logo-icon">🔥</div>
-              <h1>Firebase Clone</h1>
+              <div className="logo-icon">🏠</div>
+              <h1>SmartHub Pro</h1>
             </div>
             <p className="auth-subtitle">
-              {isSignUp ? 'Create your account' : 'Sign in to your account'}
+              {isSignUp 
+                ? 'Create your smart home control center' 
+                : 'Welcome back to your connected home'
+              }
             </p>
           </div>
 
@@ -30,13 +38,13 @@ const AuthContainer = () => {
 
           <div className="auth-footer">
             <p>
-              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              {isSignUp ? 'Already managing your smart home?' : "Ready to automate your home?"}{' '}
               <button 
                 className="auth-toggle-btn" 
                 onClick={toggleMode}
                 type="button"
               >
-                {isSignUp ? 'Sign in' : 'Sign up'}
+                {isSignUp ? 'Sign in to dashboard' : 'Create smart home account'}
               </button>
             </p>
           </div>

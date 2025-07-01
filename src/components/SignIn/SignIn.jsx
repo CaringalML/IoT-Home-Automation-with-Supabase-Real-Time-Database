@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { AuthCookies, SecurityCookies, AnalyticsCookies } from '../../utils/cookies'
 import './SignIn.css'
 
 const SignIn = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rememberEmail, setRememberEmail] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showForgotPassword, setShowForgotPassword] = useState(false)
@@ -15,129 +13,53 @@ const SignIn = () => {
 
   const { signIn, resetPassword } = useAuth()
 
-  // Load user preferences and remembered data on component mount
+  // Clear messages after 5 seconds
   useEffect(() => {
-    // Load remembered email if exists
-    const rememberedEmail = AuthCookies.getRememberedEmail()
-    if (rememberedEmail) {
-      setEmail(rememberedEmail)
-      setRememberEmail(true)
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000)
+      return () => clearTimeout(timer)
     }
+  }, [error])
 
-    // Check for security issues
-    const failedAttempts = SecurityCookies.getFailedAttempts()
-    if (failedAttempts >= 5) {
-      setError('Too many failed attempts. Please try again later or reset your password.')
+  useEffect(() => {
+    if (resetMessage) {
+      const timer = setTimeout(() => setResetMessage(''), 8000)
+      return () => clearTimeout(timer)
     }
-
-    // Track page view for analytics (if consented)
-    AnalyticsCookies.trackPageView('/signin')
-    
-    // Track feature usage
-    AnalyticsCookies.trackFeatureUsage('signin_page_visit')
-
-    // Apply user theme preference
-    applyUserTheme()
-  }, [])
-
-  const applyUserTheme = () => {
-    const theme = AuthCookies.getTheme()
-    document.documentElement.setAttribute('data-theme', theme)
-  }
-
-  const generateDeviceFingerprint = () => {
-    try {
-      const fingerprint = {
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        platform: navigator.platform,
-        screen: `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        cookiesEnabled: navigator.cookieEnabled,
-        timestamp: Date.now()
-      }
-      
-      // Create a simple hash
-      const hash = btoa(JSON.stringify(fingerprint))
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .substring(0, 32)
-      
-      return hash
-    } catch (error) {
-      console.error('Error generating fingerprint:', error)
-      return 'unknown'
-    }
-  }
+  }, [resetMessage])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     
     if (!email || !password) {
-      setError('Please fill in all fields')
+      setError('🔐 Please fill in all fields to access your smart home')
+      return
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('📧 Please enter a valid email address')
       return
     }
 
     setLoading(true)
     setError('')
 
-    // Track sign-in attempt
-    AnalyticsCookies.trackEvent('signin_attempt', {
-      email_domain: email.split('@')[1],
-      remember_email: rememberEmail,
-      failed_attempts_before: SecurityCookies.getFailedAttempts()
-    })
-
-    const { error: signInError } = await signIn(email, password)
-    
-    if (signInError) {
-      // Handle failed sign-in
-      setError(signInError.message)
+    try {
+      const { error: signInError } = await signIn(email, password)
       
-      // Track failed attempts for security
-      SecurityCookies.incrementFailedAttempts()
-      const attempts = SecurityCookies.getFailedAttempts()
-      
-      // Flag suspicious activity after multiple failures
-      if (attempts >= 3) {
-        SecurityCookies.flagSuspiciousActivity(`Multiple failed login attempts: ${attempts}`)
-        setError(`${signInError.message} (${attempts} failed attempts)`)
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          setError('🚫 Invalid credentials. Check your email and password')
+        } else if (signInError.message.includes('Email not confirmed')) {
+          setError('📬 Please verify your email address before signing in')
+        } else {
+          setError(`⚠️ ${signInError.message}`)
+        }
       }
-      
-      // Track failed sign-in
-      AnalyticsCookies.trackEvent('signin_failed', {
-        error_type: signInError.message,
-        failed_attempts: attempts
-      })
-    } else {
-      // Handle successful sign-in
-      SecurityCookies.clearFailedAttempts()
-      SecurityCookies.setLastLogin()
-      
-      // Handle remember email preference
-      if (rememberEmail) {
-        AuthCookies.setRememberedEmail(email)
-      } else {
-        AuthCookies.clearRememberedEmail()
-      }
-      
-      // Generate and store device fingerprint for security
-      const fingerprint = generateDeviceFingerprint()
-      SecurityCookies.setDeviceFingerprint(fingerprint)
-      
-      // Mark user as returning user if this is not their first time
-      AuthCookies.markAsReturningUser()
-      
-      // Track successful sign-in
-      AnalyticsCookies.trackEvent('signin_success', {
-        email_domain: email.split('@')[1],
-        is_remembered_email: !!AuthCookies.getRememberedEmail(),
-        device_fingerprint: fingerprint.substring(0, 8) // Only first 8 chars for privacy
-      })
-      
-      // Start analytics session if consented
-      if (AnalyticsCookies.hasAnalyticsConsent()) {
-        AnalyticsCookies.startSession()
-      }
+    } catch (err) {
+      setError('🌐 Connection error. Please check your internet connection')
     }
     
     setLoading(false)
@@ -147,7 +69,14 @@ const SignIn = () => {
     e.preventDefault()
     
     if (!resetEmail) {
-      setError('Please enter your email address')
+      setError('📧 Please enter your email address')
+      return
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(resetEmail)) {
+      setError('📧 Please enter a valid email address')
       return
     }
 
@@ -155,35 +84,26 @@ const SignIn = () => {
     setError('')
     setResetMessage('')
 
-    // Track password reset request
-    AnalyticsCookies.trackEvent('password_reset_requested', {
-      email_domain: resetEmail.split('@')[1]
-    })
-
-    const { error } = await resetPassword(resetEmail)
-    
-    if (error) {
-      setError(error.message)
-      AnalyticsCookies.trackEvent('password_reset_failed', {
-        error_type: error.message
-      })
-    } else {
-      setResetMessage('Check your email for password reset instructions')
-      AnalyticsCookies.trackEvent('password_reset_sent', {
-        email_domain: resetEmail.split('@')[1]
-      })
+    try {
+      const { error } = await resetPassword(resetEmail)
+      
+      if (error) {
+        setError(`⚠️ ${error.message}`)
+      } else {
+        setResetMessage('✉️ Password reset instructions sent! Check your email inbox')
+      }
+    } catch (err) {
+      setError('🌐 Connection error. Please try again')
     }
     
     setLoading(false)
   }
 
-  const handleRememberEmailChange = (checked) => {
-    setRememberEmail(checked)
-    
-    // Track preference change
-    AnalyticsCookies.trackEvent('remember_email_toggled', {
-      enabled: checked
-    })
+  const handleBackToSignIn = () => {
+    setShowForgotPassword(false)
+    setError('')
+    setResetMessage('')
+    setResetEmail('')
   }
 
   if (showForgotPassword) {
@@ -192,7 +112,7 @@ const SignIn = () => {
         <form onSubmit={handleForgotPassword} className="signin-form">
           <div className="form-group">
             <label htmlFor="reset-email" className="form-label">
-              Email address
+              🔑 Recovery Email
             </label>
             <input
               id="reset-email"
@@ -200,22 +120,23 @@ const SignIn = () => {
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
               className="form-input"
-              placeholder="Enter your email"
+              placeholder="Enter your registered email address"
               disabled={loading}
+              autoComplete="email"
             />
           </div>
 
           {error && (
             <div className="error-message">
               <span className="error-icon">⚠️</span>
-              {error}
+              <span>{error}</span>
             </div>
           )}
 
           {resetMessage && (
             <div className="success-message">
               <span className="success-icon">✅</span>
-              {resetMessage}
+              <span>{resetMessage}</span>
             </div>
           )}
 
@@ -224,23 +145,20 @@ const SignIn = () => {
             className="signin-btn"
             disabled={loading}
           >
-            {loading ? 'Sending...' : 'Send Reset Email'}
+            {loading ? (
+              <span>🔄 Sending Reset Link...</span>
+            ) : (
+              <span>📤 Send Reset Link</span>
+            )}
           </button>
 
           <button
             type="button"
             className="forgot-password-btn"
-            onClick={() => {
-              setShowForgotPassword(false)
-              setError('')
-              setResetMessage('')
-              setResetEmail('')
-              
-              // Track navigation back to sign-in
-              AnalyticsCookies.trackEvent('forgot_password_cancelled')
-            }}
+            onClick={handleBackToSignIn}
+            disabled={loading}
           >
-            Back to Sign In
+            ← Back to Smart Home Login
           </button>
         </form>
       </div>
@@ -252,7 +170,7 @@ const SignIn = () => {
       <form onSubmit={handleSubmit} className="signin-form">
         <div className="form-group">
           <label htmlFor="email" className="form-label">
-            Email address
+            📧 Email Address
           </label>
           <input
             id="email"
@@ -260,7 +178,7 @@ const SignIn = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="form-input"
-            placeholder="Enter your email"
+            placeholder="Enter your smart home email"
             disabled={loading}
             autoComplete="email"
           />
@@ -268,7 +186,7 @@ const SignIn = () => {
 
         <div className="form-group">
           <label htmlFor="password" className="form-label">
-            Password
+            🔐 Secure Password
           </label>
           <input
             id="password"
@@ -276,30 +194,16 @@ const SignIn = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="form-input"
-            placeholder="Enter your password"
+            placeholder="Enter your secure password"
             disabled={loading}
             autoComplete="current-password"
           />
         </div>
 
-        {/* Remember Email Checkbox */}
-        <div className="form-options">
-          <label className="remember-checkbox">
-            <input
-              type="checkbox"
-              checked={rememberEmail}
-              onChange={(e) => handleRememberEmailChange(e.target.checked)}
-              disabled={loading}
-            />
-            <span className="checkmark"></span>
-            <span className="checkbox-text">Remember my email</span>
-          </label>
-        </div>
-
         {error && (
           <div className="error-message">
             <span className="error-icon">⚠️</span>
-            {error}
+            <span>{error}</span>
           </div>
         )}
 
@@ -308,18 +212,20 @@ const SignIn = () => {
           className="signin-btn"
           disabled={loading}
         >
-          {loading ? 'Signing in...' : 'Sign in'}
+          {loading ? (
+            <span>🔄 Connecting to Smart Home...</span>
+          ) : (
+            <span>🏠 Access Smart Home</span>
+          )}
         </button>
 
         <button
           type="button"
           className="forgot-password-btn"
-          onClick={() => {
-            setShowForgotPassword(true)
-            AnalyticsCookies.trackEvent('forgot_password_clicked')
-          }}
+          onClick={() => setShowForgotPassword(true)}
+          disabled={loading}
         >
-          Forgot your password?
+          🔑 Forgot your access code?
         </button>
       </form>
     </div>
