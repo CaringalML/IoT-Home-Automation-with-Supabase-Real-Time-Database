@@ -30,9 +30,11 @@ jobs:
         run: |
           echo "REACT_APP_SUPABASE_URL=${{ secrets.REACT_APP_SUPABASE_URL }}" >> .env
           echo "REACT_APP_SUPABASE_ANON_KEY=${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}" >> .env
+          echo "REACT_APP_SITE_URL=${{ secrets.REACT_APP_SITE_URL }}" >> .env
         env:
           REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL }}
           REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}
+          REACT_APP_SITE_URL: ${{ secrets.REACT_APP_SITE_URL }}
 
       - name: Build
         run: npm run build
@@ -40,6 +42,7 @@ jobs:
           CI: true
           REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL }}
           REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}
+          REACT_APP_SITE_URL: ${{ secrets.REACT_APP_SITE_URL }}
 
       - name: Archive Production Artifact
         uses: actions/upload-artifact@v4
