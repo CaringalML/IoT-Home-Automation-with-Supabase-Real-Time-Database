@@ -60,8 +60,8 @@ export const AuthProvider = ({ children }) => {
   }
 
   const resetPassword = async (email) => {
-    // Get the current URL origin to construct the redirect URL
-    const redirectUrl = `${window.location.origin}/reset-password`
+    // Use your Firebase Hosting URL for password reset
+    const redirectUrl = `https://iot-home-automation-c1e96.firebaseapp.com/reset-password`
     
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
