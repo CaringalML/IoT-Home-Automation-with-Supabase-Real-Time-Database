@@ -71,12 +71,34 @@ const Dashboard = () => {
 
       setDevices(data || [])
       updateStats(data || [])
+      
+      // This is the key: Reset the loading state only when we get confirmation
+      // from the database. This prevents all race conditions.
+      setTogglingDeviceId(null)
     } catch (error) {
       console.error('Error fetching devices:', error)
     } finally {
       setLoading(false)
     }
   }, [user, updateStats])
+
+  // This effect adds resilience for mobile devices. If the app is
+  // backgrounded, it will automatically refresh its state when it becomes visible again.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('App is visible again, re-syncing devices...');
+        fetchDevices();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchDevices]);
+
 
   const subscribeToDeviceChanges = useCallback(() => {
     if (!user) return;
@@ -164,7 +186,6 @@ const Dashboard = () => {
     setTogglingDeviceId(device.id);
     try {
       const newStatus = device.status === 1 ? 0 : 1;
-  
       const { error } = await supabase
         .from('devices')
         .update({
@@ -173,18 +194,13 @@ const Dashboard = () => {
         })
         .eq('id', device.id);
   
-      if (error) throw error;
-  
-      // Manually update the local state to reflect the change immediately
-      setDevices((devices) =>
-        devices.map((d) =>
-          d.id === device.id ? { ...d, status: newStatus } : d
-        )
-      );
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error('Error toggling device:', error);
       alert('Error controlling device: ' + error.message);
-    } finally {
+      // If there's an error, always re-enable the button to prevent it getting stuck.
       setTogglingDeviceId(null);
     }
   };
@@ -562,7 +578,7 @@ const Dashboard = () => {
                       <div className="device-controls">
                         <button
                           onClick={() => toggleDeviceStatus(device)}
-                          disabled={!device.is_online || !!togglingDeviceId}
+                          disabled={!device.is_online || togglingDeviceId !== null}
                           className={`device-toggle-btn ${device.status === 1 ? 'state-off' : 'state-on'}`}
                         >
                           {togglingDeviceId === device.id
