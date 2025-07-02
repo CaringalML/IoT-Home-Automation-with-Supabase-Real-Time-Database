@@ -189,18 +189,37 @@ const Dashboard = () => {
   }
 
   const toggleDeviceStatus = async (device) => {
-    // Set loading state immediately
+    // Prevent multiple clicks and set loading state immediately
+    if (togglingDeviceId === device.id) return;
     setTogglingDeviceId(device.id);
 
-    // Set a 4-second fail-safe timeout
+    // Clear any existing timeout
+    if (toggleTimeoutRef.current) {
+      clearTimeout(toggleTimeoutRef.current);
+      toggleTimeoutRef.current = null;
+    }
+
+    // Set a 6-second fail-safe timeout (increased from 4 seconds for mobile reliability)
     toggleTimeoutRef.current = setTimeout(() => {
       console.warn('Toggle timeout reached. Forcing UI update.');
       setTogglingDeviceId(null);
       toggleTimeoutRef.current = null;
-    }, 4000);
+      // Force a device refresh to get the actual state
+      fetchDevices();
+    }, 6000);
 
     try {
       const newStatus = device.status === 1 ? 0 : 1;
+      
+      // Optimistic update - immediately update local state
+      setDevices(prevDevices => 
+        prevDevices.map(d => 
+          d.id === device.id 
+            ? { ...d, status: newStatus, updated_at: new Date().toISOString() }
+            : d
+        )
+      );
+
       const { error } = await supabase
         .from('devices')
         .update({
@@ -212,13 +231,42 @@ const Dashboard = () => {
       if (error) {
         throw error;
       }
+
+      // Log the action
+      await supabase
+        .from('device_logs')
+        .insert([{
+          device_id: device.id,
+          user_id: user.id,
+          action: newStatus === 1 ? 'turn_on' : 'turn_off',
+          old_status: device.status,
+          new_status: newStatus
+        }]);
+
+      // Clear timeout and loading state on success
+      if (toggleTimeoutRef.current) {
+        clearTimeout(toggleTimeoutRef.current);
+        toggleTimeoutRef.current = null;
+      }
+      setTogglingDeviceId(null);
+
     } catch (error) {
       console.error('Error toggling device:', error);
       alert('Error controlling device: ' + error.message);
       
+      // Revert optimistic update on error
+      setDevices(prevDevices => 
+        prevDevices.map(d => 
+          d.id === device.id 
+            ? { ...d, status: device.status } // Revert to original status
+            : d
+        )
+      );
+      
       // If there's an error, clear the timeout and reset the button immediately.
       if (toggleTimeoutRef.current) {
         clearTimeout(toggleTimeoutRef.current);
+        toggleTimeoutRef.current = null;
       }
       setTogglingDeviceId(null);
     }
@@ -584,12 +632,20 @@ const Dashboard = () => {
                       <div className="device-controls">
                         <button
                           onClick={() => toggleDeviceStatus(device)}
-                          disabled={!device.is_online || togglingDeviceId !== null}
-                          className={`device-toggle-btn ${device.status === 1 ? 'state-off' : 'state-on'}`}
+                          disabled={!device.is_online || togglingDeviceId === device.id}
+                          className={`device-toggle-btn ${
+                            togglingDeviceId === device.id 
+                              ? 'loading' 
+                              : device.status === 1 
+                                ? 'state-on' 
+                                : 'state-off'
+                          }`}
                         >
                           {togglingDeviceId === device.id
-                            ? (device.status === 1 ? 'Turning Off...' : 'Turning On...')
-                            : (device.status === 1 ? 'Turn Off' : 'Turn On')}
+                            ? '⏳ Please wait...'
+                            : device.status === 1 
+                              ? '🔴 Turn Off' 
+                              : '🟢 Turn On'}
                         </button>
 
                         <div className="device-actions">
