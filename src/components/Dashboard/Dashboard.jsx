@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Header from '../Layout/Header'
@@ -18,8 +18,7 @@ const Dashboard = () => {
   const [filterType, setFilterType] = useState('all')
   const [filterLocation, setFilterLocation] = useState('all')
   const [togglingDeviceId, setTogglingDeviceId] = useState(null)
-  const [reloadingDeviceId, setReloadingDeviceId] = useState(null)
-
+  const toggleTimeoutRef = useRef(null)
 
   // Form states
   const [deviceForm, setDeviceForm] = useState({
@@ -61,6 +60,12 @@ const Dashboard = () => {
   }, [])
 
   const fetchDevices = useCallback(async () => {
+    // If a real-time update arrives, clear any existing timeout
+    if (toggleTimeoutRef.current) {
+      clearTimeout(toggleTimeoutRef.current);
+      toggleTimeoutRef.current = null;
+    }
+
     if (!user) return;
     try {
       const { data, error } = await supabase
@@ -74,6 +79,7 @@ const Dashboard = () => {
       setDevices(data || [])
       updateStats(data || [])
       
+      // The real-time update has arrived, so we can safely reset the loading state.
       setTogglingDeviceId(null)
     } catch (error) {
       console.error('Error fetching devices:', error)
@@ -82,33 +88,12 @@ const Dashboard = () => {
     }
   }, [user, updateStats])
 
-  const handleReloadDevice = async (deviceId) => {
-    setReloadingDeviceId(deviceId);
-    try {
-      const { data, error } = await supabase
-        .from('devices')
-        .select('*')
-        .eq('id', deviceId)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setDevices(prevDevices => 
-          prevDevices.map(device => device.id === deviceId ? data : device)
-        );
-      }
-    } catch (error) {
-      console.error('Error reloading device:', error);
-    } finally {
-      setReloadingDeviceId(null);
-    }
-  };
-
-
+  // This hook ensures the app is resilient on mobile devices by re-syncing
+  // when the user brings the app back into view.
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        console.log('App re-focused, syncing devices...');
         fetchDevices();
       }
     };
@@ -135,7 +120,7 @@ const Dashboard = () => {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('Device change:', payload)
+          console.log('Device change received:', payload)
           fetchDevices()
         }
       )
@@ -204,7 +189,16 @@ const Dashboard = () => {
   }
 
   const toggleDeviceStatus = async (device) => {
+    // Set loading state immediately
     setTogglingDeviceId(device.id);
+
+    // Set a 4-second fail-safe timeout
+    toggleTimeoutRef.current = setTimeout(() => {
+      console.warn('Toggle timeout reached. Forcing UI update.');
+      setTogglingDeviceId(null);
+      toggleTimeoutRef.current = null;
+    }, 4000);
+
     try {
       const newStatus = device.status === 1 ? 0 : 1;
       const { error } = await supabase
@@ -221,6 +215,11 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error toggling device:', error);
       alert('Error controlling device: ' + error.message);
+      
+      // If there's an error, clear the timeout and reset the button immediately.
+      if (toggleTimeoutRef.current) {
+        clearTimeout(toggleTimeoutRef.current);
+      }
       setTogglingDeviceId(null);
     }
   };
@@ -594,14 +593,6 @@ const Dashboard = () => {
                         </button>
 
                         <div className="device-actions">
-                          <button
-                            onClick={() => handleReloadDevice(device.id)}
-                            className={`action-btn reload-btn ${reloadingDeviceId === device.id ? 'reloading' : ''}`}
-                            title="Reload Device"
-                            disabled={reloadingDeviceId === device.id}
-                          >
-                            {reloadingDeviceId === device.id ? <span className="reloading-spinner"></span> : '🔄'}
-                          </button>
                           <button
                             onClick={() => {
                               setSelectedDevice(device)
