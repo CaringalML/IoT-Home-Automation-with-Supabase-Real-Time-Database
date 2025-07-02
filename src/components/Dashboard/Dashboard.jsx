@@ -17,7 +17,8 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterLocation, setFilterLocation] = useState('all')
-  
+  const [togglingDeviceId, setTogglingDeviceId] = useState(null)
+
   // Form states
   const [deviceForm, setDeviceForm] = useState({
     device_id: '',
@@ -160,6 +161,7 @@ const Dashboard = () => {
   }
 
   const toggleDeviceStatus = async (device) => {
+    setTogglingDeviceId(device.id)
     try {
       const newStatus = device.status === 1 ? 0 : 1
       
@@ -176,6 +178,8 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error toggling device:', error)
       alert('Error controlling device: ' + error.message)
+    } finally {
+      setTogglingDeviceId(null)
     }
   }
 
@@ -550,20 +554,15 @@ const Dashboard = () => {
                       </div>
 
                       <div className="device-controls">
-                        <div className="toggle-container">
-                          <label className="toggle-switch">
-                            <input
-                              type="checkbox"
-                              checked={device.status === 1}
-                              onChange={() => toggleDeviceStatus(device)}
-                              disabled={!device.is_online}
-                            />
-                            <span className="toggle-slider"></span>
-                          </label>
-                          <span className="toggle-label">
-                            {device.status === 1 ? 'ON' : 'OFF'}
-                          </span>
-                        </div>
+                        <button
+                          onClick={() => toggleDeviceStatus(device)}
+                          disabled={!device.is_online || !!togglingDeviceId}
+                          className={`device-toggle-btn ${device.status === 1 ? 'state-off' : 'state-on'}`}
+                        >
+                          {togglingDeviceId === device.id
+                            ? (device.status === 1 ? 'Turning Off...' : 'Turning On...')
+                            : (device.status === 1 ? 'Turn Off' : 'Turn On')}
+                        </button>
 
                         <div className="device-actions">
                           <button

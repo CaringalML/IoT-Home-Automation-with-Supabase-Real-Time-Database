@@ -617,71 +617,57 @@
   gap: 1rem;
 }
 
-.toggle-container {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.toggle-switch {
-  position: relative;
-  width: 60px;
-  height: 34px;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(148, 163, 184, 0.3);
-  transition: all 0.4s ease;
-  border-radius: 34px;
-  border: 2px solid rgba(148, 163, 184, 0.5);
-}
-
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 24px;
-  width: 24px;
-  left: 3px;
-  bottom: 3px;
-  background: white;
-  transition: all 0.4s ease;
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-input:checked + .toggle-slider {
-  background: linear-gradient(135deg, #00d4aa, #00b894);
-  border-color: #00d4aa;
-  box-shadow: 0 0 15px rgba(0, 212, 170, 0.5);
-}
-
-input:checked + .toggle-slider:before {
-  transform: translateX(26px);
-}
-
-input:disabled + .toggle-slider {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.toggle-label {
+/* New Toggle Button Styles */
+.device-toggle-btn {
+  padding: 0.75rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #f1f5f9;
-  min-width: 30px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  min-width: 120px;
 }
+
+.device-toggle-btn.state-on {
+  background: linear-gradient(135deg, #00d4aa, #00b894);
+  color: white;
+  box-shadow: 0 4px 14px rgba(0, 212, 170, 0.2);
+}
+
+.device-toggle-btn.state-on:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 212, 170, 0.3);
+}
+
+.device-toggle-btn.state-off {
+  background: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.device-toggle-btn.state-off:hover {
+  background: rgba(148, 163, 184, 0.3);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.device-toggle-btn:disabled {
+  cursor: wait;
+  background: rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+  box-shadow: none;
+  transform: none;
+  border-color: transparent;
+  animation: loading-pulse 1.5s infinite;
+}
+
+@keyframes loading-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
 
 .device-actions {
   display: flex;
@@ -1194,22 +1180,6 @@ input:disabled + .toggle-slider {
   
   .device-card {
     padding: 1rem;
-  }
-  
-  .toggle-switch {
-    width: 50px;
-    height: 28px;
-  }
-  
-  .toggle-slider:before {
-    height: 20px;
-    width: 20px;
-    left: 2px;
-    bottom: 2px;
-  }
-  
-  input:checked + .toggle-slider:before {
-    transform: translateX(22px);
   }
   
   .stats-grid {
