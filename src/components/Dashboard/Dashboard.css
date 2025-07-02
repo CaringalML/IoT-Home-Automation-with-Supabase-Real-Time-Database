@@ -1119,7 +1119,7 @@
   
   .device-controls {
     flex-direction: column;
-    align-items: center; /* Changed from stretch to center */
+    align-items: center;
     gap: 1rem;
   }
   
