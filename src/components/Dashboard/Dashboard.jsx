@@ -242,19 +242,6 @@ const Dashboard = () => {
     }
   }
 
-  const updateDeviceStatus = async (deviceId, isOnline) => {
-    try {
-      const { error } = await supabase
-        .from('devices')
-        .update({ is_online: isOnline })
-        .eq('id', deviceId)
-
-      if (error) throw error
-    } catch (error) {
-      console.error('Error updating device status:', error)
-    }
-  }
-
   const generateQRCode = () => {
     const qrData = `DEVICE:${deviceForm.device_id}:${Date.now()}`
     setDeviceForm(prev => ({ ...prev, qr_code: qrData }))
