@@ -161,27 +161,33 @@ const Dashboard = () => {
   }
 
   const toggleDeviceStatus = async (device) => {
-    setTogglingDeviceId(device.id)
+    setTogglingDeviceId(device.id);
     try {
-      const newStatus = device.status === 1 ? 0 : 1
-      
+      const newStatus = device.status === 1 ? 0 : 1;
+  
       const { error } = await supabase
         .from('devices')
-        .update({ 
+        .update({
           status: newStatus,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', device.id)
-
-      if (error) throw error
-
+        .eq('id', device.id);
+  
+      if (error) throw error;
+  
+      // Manually update the local state to reflect the change immediately
+      setDevices((devices) =>
+        devices.map((d) =>
+          d.id === device.id ? { ...d, status: newStatus } : d
+        )
+      );
     } catch (error) {
-      console.error('Error toggling device:', error)
-      alert('Error controlling device: ' + error.message)
+      console.error('Error toggling device:', error);
+      alert('Error controlling device: ' + error.message);
     } finally {
-      setTogglingDeviceId(null)
+      setTogglingDeviceId(null);
     }
-  }
+  };
 
   const deleteDevice = async (deviceId) => {
     if (!window.confirm('Are you sure you want to delete this device?')) return
