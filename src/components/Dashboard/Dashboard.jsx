@@ -18,6 +18,8 @@ const Dashboard = () => {
   const [filterType, setFilterType] = useState('all')
   const [filterLocation, setFilterLocation] = useState('all')
   const [togglingDeviceId, setTogglingDeviceId] = useState(null)
+  const [reloadingDeviceId, setReloadingDeviceId] = useState(null)
+
 
   // Form states
   const [deviceForm, setDeviceForm] = useState({
@@ -72,8 +74,6 @@ const Dashboard = () => {
       setDevices(data || [])
       updateStats(data || [])
       
-      // This is the key: Reset the loading state only when we get confirmation
-      // from the database. This prevents all race conditions.
       setTogglingDeviceId(null)
     } catch (error) {
       console.error('Error fetching devices:', error)
@@ -82,12 +82,33 @@ const Dashboard = () => {
     }
   }, [user, updateStats])
 
-  // This effect adds resilience for mobile devices. If the app is
-  // backgrounded, it will automatically refresh its state when it becomes visible again.
+  const handleReloadDevice = async (deviceId) => {
+    setReloadingDeviceId(deviceId);
+    try {
+      const { data, error } = await supabase
+        .from('devices')
+        .select('*')
+        .eq('id', deviceId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDevices(prevDevices => 
+          prevDevices.map(device => device.id === deviceId ? data : device)
+        );
+      }
+    } catch (error) {
+      console.error('Error reloading device:', error);
+    } finally {
+      setReloadingDeviceId(null);
+    }
+  };
+
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('App is visible again, re-syncing devices...');
         fetchDevices();
       }
     };
@@ -200,7 +221,6 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error toggling device:', error);
       alert('Error controlling device: ' + error.message);
-      // If there's an error, always re-enable the button to prevent it getting stuck.
       setTogglingDeviceId(null);
     }
   };
@@ -588,6 +608,14 @@ const Dashboard = () => {
 
                         <div className="device-actions">
                           <button
+                            onClick={() => handleReloadDevice(device.id)}
+                            className={`action-btn reload-btn ${reloadingDeviceId === device.id ? 'reloading' : ''}`}
+                            title="Reload Device"
+                            disabled={reloadingDeviceId === device.id}
+                          >
+                            {reloadingDeviceId === device.id ? <span className="reloading-spinner"></span> : '🔄'}
+                          </button>
+                          <button
                             onClick={() => {
                               setSelectedDevice(device)
                               fetchDeviceLogs(device.id)
@@ -597,13 +625,6 @@ const Dashboard = () => {
                             title="View Logs"
                           >
                             📋
-                          </button>
-                          <button
-                            onClick={() => updateDeviceStatus(device.id, !device.is_online)}
-                            className="action-btn status-btn"
-                            title="Toggle Online Status"
-                          >
-                            {device.is_online ? '🔴' : '🟢'}
                           </button>
                           <button
                             onClick={() => deleteDevice(device.id)}
