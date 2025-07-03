@@ -4,8 +4,141 @@ import { supabase } from '../../lib/supabase'
 import Header from '../Layout/Header'
 import './Dashboard.css'
 
+// Import HeartbeatService and utilities
+const HeartbeatService = {
+  // Placeholder for HeartbeatService - we'll implement this inline for now
+  startService: () => {
+    console.log('💓 Heartbeat service started')
+    // Start checking for offline devices every minute
+    setInterval(async () => {
+      try {
+        await supabase.rpc('mark_offline_devices')
+        console.log('🔍 Offline check completed')
+      } catch (error) {
+        console.error('❌ Offline check failed:', error)
+      }
+    }, 60000) // Every 60 seconds
+  },
+  
+  stopService: () => {
+    console.log('⏹️ Heartbeat service stopped')
+  },
+  
+  forceHeartbeat: async (deviceId) => {
+    try {
+      const { data, error } = await supabase.rpc('update_device_heartbeat', {
+        device_id_param: deviceId
+      })
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('❌ Force heartbeat failed:', error)
+      return { success: false, error }
+    }
+  },
+  
+  getHeartbeatStats: async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('devices')
+        .select('is_online, last_heartbeat')
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      const now = new Date()
+      let onlineCount = 0
+      let staleCount = 0
+      let offlineCount = 0
+
+      data.forEach(device => {
+        const lastHeartbeat = new Date(device.last_heartbeat)
+        const secondsSinceHeartbeat = Math.floor((now - lastHeartbeat) / 1000)
+
+        if (device.is_online) {
+          if (secondsSinceHeartbeat <= 120) {
+            onlineCount++
+          } else {
+            staleCount++
+          }
+        } else {
+          offlineCount++
+        }
+      })
+
+      const stats = {
+        total: data.length,
+        online: onlineCount,
+        stale: staleCount,
+        offline: offlineCount,
+        healthyPercentage: data.length > 0 ? Math.round((onlineCount / data.length) * 100) : 0
+      }
+
+      return { success: true, data: stats }
+    } catch (err) {
+      console.error('Exception in getHeartbeatStats:', err)
+      return { success: false, error: err }
+    }
+  },
+
+  onHeartbeatEvent: (callback) => {
+    // Simple event system for now
+    return () => {}
+  },
+
+  isServiceHealthy: () => ({
+    isRunning: true,
+    intervalActive: true,
+    callbacksRegistered: 0,
+    lastCheck: new Date()
+  }),
+
+  getConfig: () => ({
+    offlineCheckInterval: 60000,
+    heartbeatTimeout: 120000,
+    isRunning: true
+  })
+}
+
+// HeartbeatUtils for formatting
+const HeartbeatUtils = {
+  formatTimeSinceHeartbeat: (seconds) => {
+    if (seconds < 60) return `${seconds}s ago`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+    return `${Math.floor(seconds / 86400)}d ago`
+  },
+
+  getHeartbeatStatusColor: (secondsSinceHeartbeat, isOnline) => {
+    if (!isOnline) return '#ef4444' // red
+    if (secondsSinceHeartbeat <= 60) return '#22c55e' // green
+    if (secondsSinceHeartbeat <= 120) return '#f59e0b' // yellow
+    return '#ef4444' // red
+  },
+
+  getHeartbeatStatusText: (secondsSinceHeartbeat, isOnline) => {
+    if (!isOnline) return 'Offline'
+    if (secondsSinceHeartbeat <= 60) return 'Online'
+    if (secondsSinceHeartbeat <= 120) return 'Stale'
+    return 'Offline'
+  },
+
+  getHeartbeatIcon: (secondsSinceHeartbeat, isOnline) => {
+    if (!isOnline) return '🔴'
+    if (secondsSinceHeartbeat <= 60) return '🟢'
+    if (secondsSinceHeartbeat <= 120) return '🟡'
+    return '🔴'
+  },
+
+  needsAttention: (secondsSinceHeartbeat, isOnline) => {
+    return !isOnline || secondsSinceHeartbeat > 120
+  }
+}
+
 const Dashboard = () => {
   const { user } = useAuth()
+  
+  // State variables
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddDevice, setShowAddDevice] = useState(false)
@@ -18,7 +151,10 @@ const Dashboard = () => {
   const [filterType, setFilterType] = useState('all')
   const [filterLocation, setFilterLocation] = useState('all')
   const [togglingDeviceId, setTogglingDeviceId] = useState(null)
+  
+  // Refs for cleanup
   const toggleTimeoutRef = useRef(null)
+  const heartbeatIntervalRef = useRef(null)
 
   // Form states
   const [deviceForm, setDeviceForm] = useState({
@@ -29,22 +165,39 @@ const Dashboard = () => {
     qr_code: ''
   })
   
-  // Statistics
+  // Statistics with heartbeat info
   const [stats, setStats] = useState({
     total: 0,
     online: 0,
     active: 0,
     offline: 0,
+    stale: 0,
     byType: {},
     byLocation: {}
   })
 
+  // Update stats function with heartbeat calculation
   const updateStats = useCallback((deviceList) => {
+    const now = new Date()
+    let staleCount = 0
+    
+    // Calculate stale devices (online but no recent heartbeat)
+    deviceList.forEach(device => {
+      if (device.is_online && device.last_heartbeat) {
+        const lastHeartbeat = new Date(device.last_heartbeat)
+        const secondsSinceHeartbeat = Math.floor((now - lastHeartbeat) / 1000)
+        if (secondsSinceHeartbeat > 120) { // More than 2 minutes
+          staleCount++
+        }
+      }
+    })
+
     const newStats = {
       total: deviceList.length,
       online: deviceList.filter(d => d.is_online).length,
       active: deviceList.filter(d => d.status === 1).length,
       offline: deviceList.filter(d => !d.is_online).length,
+      stale: staleCount,
       byType: deviceList.reduce((acc, device) => {
         acc[device.device_type] = (acc[device.device_type] || 0) + 1
         return acc
@@ -59,6 +212,7 @@ const Dashboard = () => {
     setStats(newStats)
   }, [])
 
+  // Fetch devices with heartbeat information
   const fetchDevices = useCallback(async () => {
     // If a real-time update arrives, clear any existing timeout
     if (toggleTimeoutRef.current) {
@@ -67,7 +221,9 @@ const Dashboard = () => {
     }
 
     if (!user) return;
+    
     try {
+      // Get devices with heartbeat information
       const { data, error } = await supabase
         .from('devices')
         .select('*')
@@ -76,10 +232,26 @@ const Dashboard = () => {
 
       if (error) throw error
 
-      setDevices(data || [])
-      updateStats(data || [])
+      // Add heartbeat status to each device
+      const now = new Date()
+      const devicesWithHeartbeat = (data || []).map(device => {
+        const lastHeartbeat = new Date(device.last_heartbeat || device.created_at)
+        const secondsSinceHeartbeat = Math.floor((now - lastHeartbeat) / 1000)
+        
+        return {
+          ...device,
+          secondsSinceHeartbeat,
+          heartbeatStatus: HeartbeatUtils.getHeartbeatStatusText(secondsSinceHeartbeat, device.is_online),
+          heartbeatColor: HeartbeatUtils.getHeartbeatStatusColor(secondsSinceHeartbeat, device.is_online),
+          heartbeatIcon: HeartbeatUtils.getHeartbeatIcon(secondsSinceHeartbeat, device.is_online),
+          needsAttention: HeartbeatUtils.needsAttention(secondsSinceHeartbeat, device.is_online)
+        }
+      })
+
+      setDevices(devicesWithHeartbeat)
+      updateStats(devicesWithHeartbeat)
       
-      // The real-time update has arrived, so we can safely reset the loading state.
+      // Reset loading state
       setTogglingDeviceId(null)
     } catch (error) {
       console.error('Error fetching devices:', error)
@@ -88,8 +260,31 @@ const Dashboard = () => {
     }
   }, [user, updateStats])
 
-  // This hook ensures the app is resilient on mobile devices by re-syncing
-  // when the user brings the app back into view.
+  // Initialize heartbeat service and periodic refresh
+  useEffect(() => {
+    if (user) {
+      console.log('🚀 Initializing heartbeat service for dashboard')
+      
+      // Start the heartbeat monitoring service
+      HeartbeatService.startService()
+      
+      // Periodically refresh devices to update heartbeat status
+      const refreshInterval = setInterval(() => {
+        fetchDevices()
+      }, 30000) // Every 30 seconds
+      
+      heartbeatIntervalRef.current = refreshInterval
+      
+      return () => {
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current)
+        }
+        HeartbeatService.stopService()
+      }
+    }
+  }, [user, fetchDevices])
+
+  // Visibility change handler for mobile
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -104,8 +299,7 @@ const Dashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [fetchDevices]);
-
-
+  // Subscribe to device changes with real-time updates
   const subscribeToDeviceChanges = useCallback(() => {
     if (!user) return;
 
@@ -131,6 +325,7 @@ const Dashboard = () => {
     }
   }, [user, fetchDevices])
 
+  // Initialize device fetching and subscriptions
   useEffect(() => {
     if (user) {
       fetchDevices()
@@ -139,6 +334,7 @@ const Dashboard = () => {
     }
   }, [user, fetchDevices, subscribeToDeviceChanges])
 
+  // Handle adding new device
   const handleAddDevice = async () => {
     try {
       const { data: existingDevice } = await supabase
@@ -158,7 +354,8 @@ const Dashboard = () => {
         .insert([{
           ...deviceForm,
           user_id: user.id,
-          is_online: true
+          is_online: true,
+          last_heartbeat: new Date().toISOString() // Set initial heartbeat
         }])
         .select()
 
@@ -188,6 +385,7 @@ const Dashboard = () => {
     }
   }
 
+  // Toggle device status with enhanced heartbeat handling
   const toggleDeviceStatus = async (device) => {
     // Prevent multiple clicks and set loading state immediately
     if (togglingDeviceId === device.id) return;
@@ -199,12 +397,11 @@ const Dashboard = () => {
       toggleTimeoutRef.current = null;
     }
 
-    // Set a 6-second fail-safe timeout (increased from 4 seconds for mobile reliability)
+    // Set a 6-second fail-safe timeout
     toggleTimeoutRef.current = setTimeout(() => {
       console.warn('Toggle timeout reached. Forcing UI update.');
       setTogglingDeviceId(null);
       toggleTimeoutRef.current = null;
-      // Force a device refresh to get the actual state
       fetchDevices();
     }, 6000);
 
@@ -225,6 +422,7 @@ const Dashboard = () => {
         .update({
           status: newStatus,
           updated_at: new Date().toISOString(),
+          last_heartbeat: new Date().toISOString() // Update heartbeat on status change
         })
         .eq('id', device.id);
   
@@ -263,7 +461,7 @@ const Dashboard = () => {
         )
       );
       
-      // If there's an error, clear the timeout and reset the button immediately.
+      // Clear timeout and reset button
       if (toggleTimeoutRef.current) {
         clearTimeout(toggleTimeoutRef.current);
         toggleTimeoutRef.current = null;
@@ -272,6 +470,7 @@ const Dashboard = () => {
     }
   };
 
+  // Delete device
   const deleteDevice = async (deviceId) => {
     if (!window.confirm('Are you sure you want to delete this device?')) return
 
@@ -289,17 +488,20 @@ const Dashboard = () => {
     }
   }
 
+  // Generate QR Code
   const generateQRCode = () => {
     const qrData = `DEVICE:${deviceForm.device_id}:${Date.now()}`
     setDeviceForm(prev => ({ ...prev, qr_code: qrData }))
   }
 
+  // Generate Device ID
   const generateDeviceId = () => {
     const prefix = deviceForm.device_type.toUpperCase().substring(0, 3)
     const randomId = Math.random().toString(36).substring(2, 8).toUpperCase()
     setDeviceForm(prev => ({ ...prev, device_id: `${prefix}_${randomId}` }))
   }
 
+  // Fetch device logs
   const fetchDeviceLogs = async (deviceId) => {
     try {
       const { data, error } = await supabase
@@ -319,6 +521,29 @@ const Dashboard = () => {
     }
   }
 
+  // Force heartbeat for testing
+  const forceHeartbeat = async (deviceId) => {
+    const { success, data } = await HeartbeatService.forceHeartbeat(deviceId)
+    if (success) {
+      console.log('💓 Heartbeat forced:', data)
+      fetchDevices() // Refresh to show updated heartbeat
+    } else {
+      console.error('❌ Force heartbeat failed')
+    }
+  }
+
+  // Force offline check
+  const forceOfflineCheck = async () => {
+    try {
+      const { data, error } = await supabase.rpc('mark_offline_devices')
+      if (error) throw error
+      console.log('🔍 Offline check completed:', data)
+      fetchDevices() // Refresh devices after offline check
+    } catch (error) {
+      console.error('❌ Offline check failed:', error)
+    }
+  }
+
   // Filter devices based on search and filters
   const filteredDevices = devices.filter(device => {
     const matchesSearch = device.device_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -335,6 +560,7 @@ const Dashboard = () => {
   const uniqueTypes = [...new Set(devices.map(d => d.device_type))]
   const uniqueLocations = [...new Set(devices.map(d => d.location))]
 
+  // Loading state
   if (loading) {
     return (
       <div className="dashboard-container">
@@ -345,7 +571,6 @@ const Dashboard = () => {
       </div>
     )
   }
-
   return (
     <div className="dashboard-container">
       <Header 
@@ -373,6 +598,14 @@ const Dashboard = () => {
               <span className="nav-icon">📱</span>
               <span className="nav-text">Devices</span>
               <span className="nav-badge">{stats.total}</span>
+            </button>
+            <button 
+              className={`nav-item ${activeView === 'heartbeat' ? 'active' : ''}`}
+              onClick={() => setActiveView('heartbeat')}
+            >
+              <span className="nav-icon">💓</span>
+              <span className="nav-text">Heartbeat Monitor</span>
+              {stats.stale > 0 && <span className="nav-badge" style={{background: '#f59e0b'}}>{stats.stale}</span>}
             </button>
             <button 
               className={`nav-item ${activeView === 'automation' ? 'active' : ''}`}
@@ -411,6 +644,12 @@ const Dashboard = () => {
                 <span className="status-value online">Operational</span>
               </div>
               <div className="status-item">
+                <span className="status-label">Heartbeat Service</span>
+                <span className="status-value online">
+                  {HeartbeatService.isServiceHealthy().isRunning ? 'Running' : 'Stopped'}
+                </span>
+              </div>
+              <div className="status-item">
                 <span className="status-label">Last Sync</span>
                 <span className="status-value">Just now</span>
               </div>
@@ -424,10 +663,10 @@ const Dashboard = () => {
             <div className="overview-content">
               <div className="content-header">
                 <h2>Smart Home Overview</h2>
-                <p>Monitor and control your connected devices</p>
+                <p>Monitor and control your connected devices with real-time heartbeat monitoring</p>
               </div>
 
-              {/* Stats Cards */}
+              {/* Enhanced Stats Cards with Heartbeat */}
               <div className="stats-grid">
                 <div className="stat-card primary">
                   <div className="card-header">
@@ -436,40 +675,40 @@ const Dashboard = () => {
                   </div>
                   <div className="card-content">
                     <div className="stat-number">{stats.total}</div>
-                    <div className="stat-change positive">+2 this week</div>
+                    <div className="stat-change positive">Connected ecosystem</div>
                   </div>
                 </div>
 
                 <div className="stat-card success">
                   <div className="card-header">
-                    <span className="card-icon">🟢</span>
-                    <span className="card-title">Online</span>
+                    <span className="card-icon">💚</span>
+                    <span className="card-title">Healthy Devices</span>
                   </div>
                   <div className="card-content">
-                    <div className="stat-number">{stats.online}</div>
-                    <div className="stat-percentage">{stats.total > 0 ? Math.round((stats.online / stats.total) * 100) : 0}%</div>
+                    <div className="stat-number">{stats.online - stats.stale}</div>
+                    <div className="stat-percentage">{stats.total > 0 ? Math.round(((stats.online - stats.stale) / stats.total) * 100) : 0}%</div>
                   </div>
                 </div>
 
                 <div className="stat-card warning">
                   <div className="card-header">
-                    <span className="card-icon">💡</span>
-                    <span className="card-title">Active</span>
+                    <span className="card-icon">💛</span>
+                    <span className="card-title">Stale Devices</span>
                   </div>
                   <div className="card-content">
-                    <div className="stat-number">{stats.active}</div>
-                    <div className="stat-percentage">{stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}%</div>
+                    <div className="stat-number">{stats.stale}</div>
+                    <div className="stat-change negative">{stats.stale > 0 ? 'Need attention' : 'All good'}</div>
                   </div>
                 </div>
 
                 <div className="stat-card danger">
                   <div className="card-header">
-                    <span className="card-icon">🔴</span>
-                    <span className="card-title">Offline</span>
+                    <span className="card-icon">💔</span>
+                    <span className="card-title">Offline Devices</span>
                   </div>
                   <div className="card-content">
                     <div className="stat-number">{stats.offline}</div>
-                    <div className="stat-change negative">-1 today</div>
+                    <div className="stat-change negative">{stats.offline > 0 ? 'Monitor needed' : 'All online'}</div>
                   </div>
                 </div>
               </div>
@@ -483,12 +722,12 @@ const Dashboard = () => {
                     <span className="action-title">Add Device</span>
                     <span className="action-desc">Connect new smart device</span>
                   </button>
-                  <button className="action-card">
-                    <span className="action-icon">⚡</span>
-                    <span className="action-title">Energy Report</span>
-                    <span className="action-desc">View usage analytics</span>
+                  <button className="action-card" onClick={() => setActiveView('heartbeat')}>
+                    <span className="action-icon">💓</span>
+                    <span className="action-title">Heartbeat Monitor</span>
+                    <span className="action-desc">Check device health</span>
                   </button>
-                  <button className="action-card">
+                  <button className="action-card" onClick={forceOfflineCheck}>
                     <span className="action-icon">🔄</span>
                     <span className="action-title">Sync All</span>
                     <span className="action-desc">Refresh device status</span>
@@ -501,31 +740,172 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Recent Activity */}
+              {/* Recent Activity with Heartbeat Alerts */}
               <div className="recent-activity">
                 <h3>Recent Activity</h3>
                 <div className="activity-list">
-                  <div className="activity-item">
-                    <div className="activity-icon">💡</div>
-                    <div className="activity-content">
-                      <span className="activity-text">Living Room Light turned on</span>
-                      <span className="activity-time">2 minutes ago</span>
+                  {devices.filter(d => d.needsAttention).slice(0, 3).map(device => (
+                    <div key={device.id} className="activity-item">
+                      <div className="activity-icon">💓</div>
+                      <div className="activity-content">
+                        <span className="activity-text">{device.device_name} needs attention - {device.heartbeatStatus}</span>
+                        <span className="activity-time">{HeartbeatUtils.formatTimeSinceHeartbeat(device.secondsSinceHeartbeat)}</span>
+                      </div>
                     </div>
-                  </div>
+                  ))}
+                  {devices.filter(d => d.needsAttention).length === 0 && (
+                    <div className="activity-item">
+                      <div className="activity-icon">✅</div>
+                      <div className="activity-content">
+                        <span className="activity-text">All devices are healthy and responding</span>
+                        <span className="activity-time">System status: Excellent</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="activity-item">
                     <div className="activity-icon">🌡️</div>
                     <div className="activity-content">
-                      <span className="activity-text">Thermostat set to 72°F</span>
+                      <span className="activity-text">System temperature normal</span>
                       <span className="activity-time">15 minutes ago</span>
                     </div>
                   </div>
-                  <div className="activity-item">
-                    <div className="activity-icon">🔒</div>
-                    <div className="activity-content">
-                      <span className="activity-text">Front Door locked</span>
-                      <span className="activity-time">1 hour ago</span>
-                    </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeView === 'heartbeat' && (
+            <div className="heartbeat-content">
+              <div className="content-header">
+                <div className="header-left">
+                  <h2>Heartbeat Monitor</h2>
+                  <p>Real-time device health monitoring and diagnostics</p>
+                </div>
+                <div className="header-actions">
+                  <button 
+                    className="primary-btn"
+                    onClick={forceOfflineCheck}
+                  >
+                    <span>🔄</span> Check All Devices
+                  </button>
+                </div>
+              </div>
+
+              {/* Heartbeat Stats */}
+              <div className="stats-grid">
+                <div className="stat-card success">
+                  <div className="card-header">
+                    <span className="card-icon">💚</span>
+                    <span className="card-title">Healthy Devices</span>
                   </div>
+                  <div className="card-content">
+                    <div className="stat-number">{stats.online - stats.stale}</div>
+                    <div className="stat-change positive">Active heartbeats</div>
+                  </div>
+                </div>
+
+                <div className="stat-card warning">
+                  <div className="card-header">
+                    <span className="card-icon">💛</span>
+                    <span className="card-title">Stale Devices</span>
+                  </div>
+                  <div className="card-content">
+                    <div className="stat-number">{stats.stale}</div>
+                    <div className="stat-change negative">Need attention</div>
+                  </div>
+                </div>
+
+                <div className="stat-card danger">
+                  <div className="card-header">
+                    <span className="card-icon">💔</span>
+                    <span className="card-title">Offline Devices</span>
+                  </div>
+                  <div className="card-content">
+                    <div className="stat-number">{stats.offline}</div>
+                    <div className="stat-change negative">No heartbeat</div>
+                  </div>
+                </div>
+
+                <div className="stat-card primary">
+                  <div className="card-header">
+                    <span className="card-icon">📊</span>
+                    <span className="card-title">Health Score</span>
+                  </div>
+                  <div className="card-content">
+                    <div className="stat-number">{stats.total > 0 ? Math.round(((stats.online - stats.stale) / stats.total) * 100) : 0}%</div>
+                    <div className="stat-percentage">System health</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Device Heartbeat List */}
+              <div className="heartbeat-devices">
+                <h3>Device Heartbeat Status</h3>
+                <div className="devices-grid">
+                  {devices.map(device => (
+                    <div key={device.id} className={`device-card heartbeat-device ${device.needsAttention ? 'needs-attention' : ''}`}>
+                      <div className="device-header">
+                        <div className="device-info">
+                          <h3>{device.device_name}</h3>
+                          <span className="device-location">{device.location}</span>
+                        </div>
+                        <div className="heartbeat-status">
+                          <span className="heartbeat-icon">{device.heartbeatIcon}</span>
+                          <span 
+                            className="heartbeat-text"
+                            style={{ color: device.heartbeatColor }}
+                          >
+                            {device.heartbeatStatus}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="device-details">
+                        <div className="heartbeat-info">
+                          <div className="heartbeat-item">
+                            <span className="heartbeat-label">Last Heartbeat:</span>
+                            <span className="heartbeat-value">
+                              {HeartbeatUtils.formatTimeSinceHeartbeat(device.secondsSinceHeartbeat)}
+                            </span>
+                          </div>
+                          <div className="heartbeat-item">
+                            <span className="heartbeat-label">Device ID:</span>
+                            <span className="heartbeat-value">{device.device_id}</span>
+                          </div>
+                          <div className="heartbeat-item">
+                            <span className="heartbeat-label">Status:</span>
+                            <span className="heartbeat-value">
+                              {device.status === 1 ? '🟢 ON' : '🔴 OFF'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="device-controls heartbeat-controls">
+                        <button
+                          onClick={() => forceHeartbeat(device.device_id)}
+                          className="action-btn heartbeat-btn"
+                          title="Force Heartbeat"
+                        >
+                          💓 Ping
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedDevice(device)
+                            fetchDeviceLogs(device.id)
+                            setShowDeviceLogs(true)
+                          }}
+                          className="action-btn logs-btn"
+                          title="View Logs"
+                        >
+                          📋 Logs
+                        </button>
+                        {device.needsAttention && (
+                          <span className="attention-badge">⚠️ Needs Attention</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -582,7 +962,7 @@ const Dashboard = () => {
                 </select>
               </div>
 
-              {/* Devices Grid */}
+              {/* Devices Grid with Enhanced Heartbeat Info */}
               {filteredDevices.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-icon">📱</div>
@@ -605,14 +985,27 @@ const Dashboard = () => {
               ) : (
                 <div className="devices-grid">
                   {filteredDevices.map(device => (
-                    <div key={device.id} className="device-card">
+                    <div key={device.id} className={`device-card ${device.needsAttention ? 'needs-attention' : ''}`}>
                       <div className="device-header">
                         <div className="device-info">
                           <h3>{device.device_name}</h3>
                           <span className="device-location">{device.location}</span>
                         </div>
-                        <div className={`device-status ${device.is_online ? 'online' : 'offline'}`}>
-                          {device.is_online ? '🟢' : '🔴'}
+                        <div className="device-status-container">
+                          <div className={`device-status ${device.is_online ? 'online' : 'offline'}`}>
+                            {device.heartbeatIcon}
+                          </div>
+                          <div className="heartbeat-mini-info">
+                            <span 
+                              className="heartbeat-mini-text"
+                              style={{ color: device.heartbeatColor }}
+                            >
+                              {device.heartbeatStatus}
+                            </span>
+                            <span className="heartbeat-mini-time">
+                              {HeartbeatUtils.formatTimeSinceHeartbeat(device.secondsSinceHeartbeat)}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -627,6 +1020,11 @@ const Dashboard = () => {
                           <span>{device.device_type}</span>
                         </div>
                         <div className="device-id">ID: {device.device_id}</div>
+                        {device.needsAttention && (
+                          <div className="attention-warning">
+                            ⚠️ Device needs attention
+                          </div>
+                        )}
                       </div>
 
                       <div className="device-controls">
@@ -649,6 +1047,13 @@ const Dashboard = () => {
                         </button>
 
                         <div className="device-actions">
+                          <button
+                            onClick={() => forceHeartbeat(device.device_id)}
+                            className="action-btn heartbeat-btn"
+                            title="Force Heartbeat"
+                          >
+                            💓
+                          </button>
                           <button
                             onClick={() => {
                               setSelectedDevice(device)

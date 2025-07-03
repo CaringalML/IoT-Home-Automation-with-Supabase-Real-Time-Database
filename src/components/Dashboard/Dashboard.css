@@ -1337,3 +1337,768 @@
     color: black;
   }
 }
+
+
+/* Add these styles to your existing Dashboard.css file */
+
+/* Heartbeat-specific styles */
+.heartbeat-content {
+  padding: 0;
+}
+
+.heartbeat-devices {
+  margin-top: 2rem;
+}
+
+.heartbeat-devices h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 1.5rem;
+}
+
+.heartbeat-device {
+  border-left: 4px solid transparent;
+  transition: border-color 0.3s ease;
+}
+
+.heartbeat-device.healthy {
+  border-left-color: #22c55e;
+}
+
+.heartbeat-device.stale {
+  border-left-color: #f59e0b;
+}
+
+.heartbeat-device.offline {
+  border-left-color: #ef4444;
+}
+
+.device-status-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.heartbeat-mini-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.heartbeat-mini-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.heartbeat-mini-time {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-family: 'SF Mono', Consolas, monospace;
+}
+
+.heartbeat-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.heartbeat-icon {
+  font-size: 1.5rem;
+  animation: heartbeat 2s infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.heartbeat-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.heartbeat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.heartbeat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.heartbeat-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.heartbeat-value {
+  font-size: 0.75rem;
+  color: #e2e8f0;
+  font-weight: 600;
+  font-family: 'SF Mono', Consolas, monospace;
+}
+
+.heartbeat-controls {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.heartbeat-btn {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  color: #86efac;
+}
+
+.heartbeat-btn:hover {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: #16a34a;
+  transform: translateY(-2px);
+}
+
+.attention-badge {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: pulse-attention 2s infinite;
+}
+
+@keyframes pulse-attention {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.attention-warning {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+/* Heartbeat status indicators */
+.heartbeat-healthy {
+  color: #22c55e;
+}
+
+.heartbeat-stale {
+  color: #f59e0b;
+}
+
+.heartbeat-offline {
+  color: #ef4444;
+}
+
+/* Enhanced device card styles for heartbeat */
+.device-card {
+  position: relative;
+  overflow: visible;
+}
+
+.device-card::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, transparent, transparent);
+  border-radius: 18px;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.device-card.needs-attention::after {
+  background: linear-gradient(45deg, #ef4444, #f59e0b, #ef4444);
+  background-size: 400% 400%;
+  animation: gradient-pulse 3s ease infinite;
+  opacity: 0.6;
+}
+
+@keyframes gradient-pulse {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Heartbeat service status in sidebar */
+.sidebar-footer .status-item .status-value.heartbeat-running {
+  color: #22c55e;
+}
+
+.sidebar-footer .status-item .status-value.heartbeat-stopped {
+  color: #ef4444;
+}
+
+/* Heartbeat monitor page specific styles */
+.heartbeat-content .content-header {
+  margin-bottom: 2rem;
+}
+
+.heartbeat-content .stats-grid {
+  margin-bottom: 3rem;
+}
+
+.heartbeat-content .stat-card.success .card-icon,
+.heartbeat-content .stat-card.warning .card-icon,
+.heartbeat-content .stat-card.danger .card-icon {
+  animation: heartbeat-icon 2s infinite;
+}
+
+@keyframes heartbeat-icon {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* Mobile responsiveness for heartbeat */
+@media (max-width: 768px) {
+  .heartbeat-info {
+    gap: 0.25rem;
+  }
+  
+  .heartbeat-item {
+    font-size: 0.7rem;
+  }
+  
+  .heartbeat-controls {
+    justify-content: center;
+    margin-top: 1rem;
+  }
+  
+  .attention-badge {
+    font-size: 0.65rem;
+    padding: 0.25rem;
+  }
+  
+  .device-status-container {
+    gap: 0.25rem;
+  }
+  
+  .heartbeat-mini-text {
+    font-size: 0.65rem;
+  }
+  
+  .heartbeat-mini-time {
+    font-size: 0.6rem;
+  }
+}
+
+/* Heartbeat pulse animation for online devices */
+.device-status.online .heartbeat-icon {
+  animation: heartbeat-pulse 2s infinite;
+}
+
+@keyframes heartbeat-pulse {
+  0% { 
+    transform: scale(1);
+    filter: drop-shadow(0 0 5px currentColor);
+  }
+  50% { 
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+  100% { 
+    transform: scale(1);
+    filter: drop-shadow(0 0 5px currentColor);
+  }
+}
+
+/* Enhanced stats for heartbeat monitoring */
+.stat-card.heartbeat-healthy {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.stat-card.heartbeat-stale {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.stat-card.heartbeat-offline {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Heartbeat timeline effect */
+.heartbeat-timeline {
+  position: relative;
+  padding-left: 2rem;
+  margin: 1rem 0;
+}
+
+.heartbeat-timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #22c55e, #f59e0b, #ef4444);
+  border-radius: 1px;
+}
+
+.heartbeat-timeline-item {
+  position: relative;
+  padding: 0.5rem 0;
+  margin-left: 1rem;
+}
+
+.heartbeat-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -1.25rem;
+  top: 0.75rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  border: 2px solid rgba(15, 23, 42, 0.9);
+}
+
+.heartbeat-timeline-item.healthy::before {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+.heartbeat-timeline-item.stale::before {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+
+.heartbeat-timeline-item.offline::before {
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
+/* Real-time heartbeat indicator */
+.realtime-heartbeat {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.realtime-heartbeat::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: realtime-pulse 1s infinite;
+}
+
+@keyframes realtime-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+/* Heartbeat health indicator colors */
+.health-excellent {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.health-good {
+  color: #84cc16;
+  background: rgba(132, 204, 22, 0.1);
+}
+
+.health-warning {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.health-critical {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Heartbeat chart styles */
+.heartbeat-chart {
+  background: rgba(30, 41, 59, 0.6);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+}
+
+.heartbeat-chart h4 {
+  color: #f1f5f9;
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.heartbeat-bars {
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+  height: 100px;
+  margin: 1rem 0;
+}
+
+.heartbeat-bar {
+  flex: 1;
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 4px 4px 0 0;
+  min-height: 10px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.heartbeat-bar.active {
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+}
+
+.heartbeat-bar.stale {
+  background: linear-gradient(180deg, #f59e0b, #d97706);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.heartbeat-bar.offline {
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.heartbeat-bar::after {
+  content: attr(data-value);
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-family: 'SF Mono', Consolas, monospace;
+}
+
+/* Device grid enhancements for heartbeat */
+.devices-grid .device-card {
+  transition: all 0.3s ease;
+}
+
+.devices-grid .device-card.heartbeat-stale {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.devices-grid .device-card.heartbeat-offline {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.devices-grid .device-card.heartbeat-healthy {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+/* Heartbeat notification styles */
+.heartbeat-notification {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  max-width: 300px;
+  z-index: 1000;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.heartbeat-notification.success {
+  border-left: 4px solid #22c55e;
+}
+
+.heartbeat-notification.warning {
+  border-left: 4px solid #f59e0b;
+}
+
+.heartbeat-notification.error {
+  border-left: 4px solid #ef4444;
+}
+
+.heartbeat-notification h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.heartbeat-notification p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+/* System health overview */
+.system-health-overview {
+  background: rgba(30, 41, 59, 0.6);
+  border-radius: 16px;
+  padding: 2rem;
+  margin: 2rem 0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.system-health-overview h3 {
+  color: #f1f5f9;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.health-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #ef4444 0deg,
+    #f59e0b 60deg,
+    #22c55e 120deg,
+    #22c55e 360deg
+  );
+  position: relative;
+  margin: 0 auto 2rem;
+}
+
+.health-score::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 50%;
+}
+
+.health-score-text {
+  position: relative;
+  z-index: 1;
+  color: #f1f5f9;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.health-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.health-item {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.health-item-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.health-item-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+/* Heartbeat logs */
+.heartbeat-logs {
+  background: rgba(30, 41, 59, 0.6);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.heartbeat-logs h4 {
+  color: #f1f5f9;
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.heartbeat-log-entry {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  transition: all 0.2s ease;
+}
+
+.heartbeat-log-entry:hover {
+  background: rgba(15, 23, 42, 0.6);
+  transform: translateX(4px);
+}
+
+.heartbeat-log-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-family: 'SF Mono', Consolas, monospace;
+  min-width: 80px;
+}
+
+.heartbeat-log-device {
+  font-size: 0.875rem;
+  color: #e2e8f0;
+  font-weight: 500;
+  flex: 1;
+}
+
+.heartbeat-log-status {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.heartbeat-log-status.online {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.heartbeat-log-status.offline {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.heartbeat-log-status.stale {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+/* Enhanced scrollbar for heartbeat sections */
+.heartbeat-logs::-webkit-scrollbar,
+.heartbeat-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.heartbeat-logs::-webkit-scrollbar-track,
+.heartbeat-content::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 4px;
+}
+
+.heartbeat-logs::-webkit-scrollbar-thumb,
+.heartbeat-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #22c55e 0%, #0891b2 100%);
+  border-radius: 4px;
+}
+
+.heartbeat-logs::-webkit-scrollbar-thumb:hover,
+.heartbeat-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #16a34a 0%, #0891b2 100%);
+}
+
+/* Responsive adjustments for heartbeat */
+@media (max-width: 1024px) {
+  .heartbeat-chart {
+    padding: 1rem;
+  }
+  
+  .health-breakdown {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .heartbeat-bars {
+    height: 80px;
+  }
+}
+
+@media (max-width: 640px) {
+  .system-health-overview {
+    padding: 1.5rem;
+  }
+  
+  .health-score {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .health-score-text {
+    font-size: 1.25rem;
+  }
+  
+  .health-breakdown {
+    grid-template-columns: 1fr;
+  }
+  
+  .heartbeat-log-entry {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .heartbeat-log-time {
+    min-width: auto;
+  }
+  
+  .heartbeat-notification {
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}
