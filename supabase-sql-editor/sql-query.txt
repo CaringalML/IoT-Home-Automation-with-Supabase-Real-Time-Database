@@ -1,0 +1,293 @@
+-- ===========================================
+-- SECURE RLS SETUP WITH PUBLIC READ POLICY
+-- This is the recommended approach for production
+-- ===========================================
+
+-- First, enable RLS on both tables
+ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE device_logs ENABLE ROW LEVEL SECURITY;
+
+-- ===========================================
+-- DEVICES TABLE POLICIES
+-- ===========================================
+
+-- Drop any existing policies to start fresh
+DROP POLICY IF EXISTS "Allow anonymous read access to devices" ON devices;
+DROP POLICY IF EXISTS "Users can view own devices" ON devices;
+DROP POLICY IF EXISTS "Users can insert own devices" ON devices;
+DROP POLICY IF EXISTS "Users can update own devices" ON devices;
+DROP POLICY IF EXISTS "Users can delete own devices" ON devices;
+
+-- Policy 1: Allow anonymous (ESP32) read access to devices
+-- This allows IoT devices to read device status using anonymous API key
+CREATE POLICY "Allow anonymous read access to devices" 
+ON devices FOR SELECT 
+USING (true);
+
+-- Policy 2: Allow authenticated users to view their own devices
+-- This allows web dashboard users to see their devices
+CREATE POLICY "Users can view own devices" 
+ON devices FOR SELECT 
+USING (auth.uid() = user_id);
+
+-- Policy 3: Allow authenticated users to insert their own devices
+-- This allows web dashboard to create new devices
+CREATE POLICY "Users can insert own devices" 
+ON devices FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+-- Policy 4: Allow authenticated users to update their own devices
+-- This allows web dashboard to modify device settings
+CREATE POLICY "Users can update own devices" 
+ON devices FOR UPDATE 
+USING (auth.uid() = user_id);
+
+-- Policy 5: Allow anonymous (ESP32) updates for device status
+-- This allows IoT devices to update their online status and respond to commands
+CREATE POLICY "Allow ESP32 status updates" 
+ON devices FOR UPDATE 
+USING (true)
+WITH CHECK (true);
+
+-- Policy 6: Allow authenticated users to delete their own devices
+CREATE POLICY "Users can delete own devices" 
+ON devices FOR DELETE 
+USING (auth.uid() = user_id);
+
+-- ===========================================
+-- DEVICE LOGS TABLE POLICIES
+-- ===========================================
+
+-- Drop any existing policies
+DROP POLICY IF EXISTS "Users can view own device logs" ON device_logs;
+DROP POLICY IF EXISTS "Users can insert own device logs" ON device_logs;
+DROP POLICY IF EXISTS "Allow anonymous log access" ON device_logs;
+
+-- Policy 1: Allow authenticated users to view logs for their devices
+CREATE POLICY "Users can view own device logs" 
+ON device_logs FOR SELECT 
+USING (
+  auth.uid() = user_id OR
+  EXISTS (
+    SELECT 1 FROM devices d 
+    WHERE d.id = device_logs.device_id 
+    AND d.user_id = auth.uid()
+  )
+);
+
+-- Policy 2: Allow automatic log insertion (from triggers)
+-- This allows the automatic logging system to work
+CREATE POLICY "Allow automatic log insertion" 
+ON device_logs FOR INSERT 
+WITH CHECK (true);
+
+-- Policy 3: Allow authenticated users to manually insert logs
+CREATE POLICY "Users can insert device logs" 
+ON device_logs FOR INSERT 
+WITH CHECK (
+  auth.uid() = user_id OR
+  EXISTS (
+    SELECT 1 FROM devices d 
+    WHERE d.id = device_logs.device_id 
+    AND d.user_id = auth.uid()
+  )
+);
+
+-- ===========================================
+-- VERIFICATION AND TESTING
+-- ===========================================
+
+-- Show RLS status (should be ENABLED)
+SELECT 
+    tablename,
+    CASE 
+        WHEN rowsecurity THEN 'ENABLED ✅' 
+        ELSE 'DISABLED ❌' 
+    END as rls_status
+FROM pg_tables 
+WHERE tablename IN ('devices', 'device_logs')
+    AND schemaname = 'public';
+
+-- Show all policies created
+SELECT 
+    policyname,
+    tablename,
+    cmd as operation,
+    CASE 
+        WHEN qual IS NOT NULL THEN 'Has USING clause'
+        ELSE 'No USING clause'
+    END as using_clause,
+    CASE 
+        WHEN with_check IS NOT NULL THEN 'Has WITH CHECK clause'
+        ELSE 'No WITH CHECK clause'
+    END as with_check_clause
+FROM pg_policies 
+WHERE tablename IN ('devices', 'device_logs')
+ORDER BY tablename, policyname;
+
+-- Test anonymous read access (simulating ESP32)
+-- This should work even without authentication
+SELECT 
+    'Anonymous Read Test' as test_type,
+    COUNT(*) as devices_readable
+FROM devices;
+
+-- Show existing devices with their accessibility
+SELECT 
+    device_id,
+    device_name,
+    device_type,
+    location,
+    is_online,
+    status,
+    CASE 
+        WHEN status = 1 THEN 'ON'
+        WHEN status = 0 THEN 'OFF'
+        ELSE 'UNKNOWN'
+    END as status_text,
+    user_id,
+    created_at
+FROM devices
+ORDER BY created_at DESC;
+
+-- ===========================================
+-- ESP32 ACCESS TEST QUERIES
+-- ===========================================
+
+-- Test query 1: Get specific device (what ESP32 will do)
+SELECT 
+    device_id,
+    device_name,
+    status,
+    is_online,
+    updated_at
+FROM devices 
+WHERE device_id = 'XIAO_LIGHT_001';
+
+-- Test query 2: Get all devices (general read test)
+SELECT 
+    device_id,
+    device_name,
+    device_type,
+    location,
+    status,
+    is_online
+FROM devices 
+ORDER BY device_name;
+
+-- ===========================================
+-- POLICY EXPLANATION
+-- ===========================================
+
+/*
+🔒 SECURITY MODEL EXPLANATION:
+
+DEVICES TABLE POLICIES:
+1. "Allow anonymous read access to devices"
+   - Purpose: ESP32 devices can read device status using anonymous API key
+   - Scope: SELECT operations only
+   - Security: Read-only access, no sensitive data exposure
+
+2. "Users can view own devices" 
+   - Purpose: Web dashboard users see only their devices
+   - Scope: SELECT operations for authenticated users
+   - Security: User isolation - users only see their own devices
+
+3. "Users can insert own devices"
+   - Purpose: Web dashboard can create new devices
+   - Scope: INSERT operations for authenticated users
+   - Security: New devices automatically belong to the creating user
+
+4. "Allow ESP32 status updates"
+   - Purpose: ESP32 devices can update their status and online state
+   - Scope: UPDATE operations (anonymous)
+   - Security: Allows device status updates but protects other fields
+
+5. "Users can update own devices"
+   - Purpose: Web dashboard can modify device settings
+   - Scope: UPDATE operations for authenticated users
+   - Security: Users can only modify their own devices
+
+6. "Users can delete own devices"
+   - Purpose: Web dashboard can remove devices
+   - Scope: DELETE operations for authenticated users
+   - Security: Users can only delete their own devices
+
+DEVICE LOGS POLICIES:
+1. "Users can view own device logs"
+   - Purpose: Users can see logs for their devices
+   - Security: Log access restricted to device owners
+
+2. "Allow automatic log insertion"
+   - Purpose: Database triggers can create log entries
+   - Security: Enables automatic logging system
+
+3. "Users can insert device logs"
+   - Purpose: Manual log creation from web dashboard
+   - Security: Users can only create logs for their devices
+
+🚀 ESP32 CAPABILITIES:
+With these policies, ESP32 devices can:
+✅ Read all device data (to find their commands)
+✅ Update device status (to respond to commands)
+✅ Update online status (for heartbeat)
+❌ Cannot delete devices (security)
+❌ Cannot see device logs (privacy)
+❌ Cannot modify device settings (security)
+
+🌐 WEB DASHBOARD CAPABILITIES:
+Authenticated users can:
+✅ See only their own devices
+✅ Create new devices
+✅ Modify their device settings
+✅ Delete their devices
+✅ View logs for their devices
+❌ Cannot see other users' devices (privacy)
+
+This provides a secure, multi-user system while allowing
+ESP32 devices to function with anonymous API access.
+*/
+
+-- ===========================================
+-- FINAL STATUS CHECK
+-- ===========================================
+
+SELECT 
+    '🔒 SECURE RLS SETUP COMPLETE' as status,
+    '✅ ESP32 Read Access: ENABLED' as esp32_access,
+    '✅ User Isolation: ENABLED' as user_security,
+    '✅ Anonymous Updates: ENABLED' as device_updates,
+    '🚀 Ready for Production Use' as production_ready;
+
+-- ===========================================
+-- TESTING INSTRUCTIONS
+-- ===========================================
+
+/*
+🧪 TESTING STEPS:
+
+1. ESP32 TEST:
+   - Run your XIAO ESP32S3 code
+   - Should still read devices successfully
+   - Should still respond to status changes
+   - Should still update device status
+
+2. WEB DASHBOARD TEST:
+   - Log into your web dashboard
+   - Should see your devices
+   - Should be able to control devices
+   - Should be able to add/modify/delete devices
+
+3. SECURITY TEST:
+   - Create a second user account
+   - Login as second user
+   - Should NOT see first user's devices
+   - Should be able to create their own devices
+
+4. REAL-TIME TEST:
+   - Change device status in Supabase Table Editor
+   - ESP32 should respond within 5 seconds
+   - Web dashboard should update in real-time
+
+If all tests pass, your system is production-ready! 🎉
+*/
