@@ -249,9 +249,13 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  bottom: 0;
+  border-radius: 16px;
   background: linear-gradient(90deg, transparent, currentColor, transparent);
   opacity: 0.7;
+  -webkit-mask: linear-gradient(to bottom, white 3px, transparent 3px);
+  mask: linear-gradient(to bottom, white 3px, transparent 3px);
+  pointer-events: none;
 }
 
 .stat-card.primary::before { background: linear-gradient(90deg, transparent, #00d4aa, transparent); }
@@ -532,10 +536,14 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  bottom: 0;
+  border-radius: 16px;
   background: linear-gradient(90deg, #00d4aa, #ffd700, #ff6b6b, #74b9ff);
   background-size: 400% 400%;
   animation: gradient 8s ease infinite;
+  -webkit-mask: linear-gradient(to bottom, white 3px, transparent 3px);
+  mask: linear-gradient(to bottom, white 3px, transparent 3px);
+  pointer-events: none;
 }
 
 @keyframes gradient {

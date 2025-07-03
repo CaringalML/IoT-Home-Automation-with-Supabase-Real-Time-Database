@@ -24,19 +24,6 @@ const HeartbeatService = {
     console.log('⏹️ Heartbeat service stopped')
   },
   
-  forceHeartbeat: async (deviceId) => {
-    try {
-      const { data, error } = await supabase.rpc('update_device_heartbeat', {
-        device_id_param: deviceId
-      })
-      if (error) throw error
-      return { success: true, data }
-    } catch (error) {
-      console.error('❌ Force heartbeat failed:', error)
-      return { success: false, error }
-    }
-  },
-  
   getHeartbeatStats: async (userId) => {
     try {
       const { data, error } = await supabase
@@ -521,17 +508,6 @@ const Dashboard = () => {
     }
   }
 
-  // Force heartbeat for testing
-  const forceHeartbeat = async (deviceId) => {
-    const { success, data } = await HeartbeatService.forceHeartbeat(deviceId)
-    if (success) {
-      console.log('💓 Heartbeat forced:', data)
-      fetchDevices() // Refresh to show updated heartbeat
-    } else {
-      console.error('❌ Force heartbeat failed')
-    }
-  }
-
   // Force offline check
   const forceOfflineCheck = async () => {
     try {
@@ -883,13 +859,6 @@ const Dashboard = () => {
 
                       <div className="device-controls heartbeat-controls">
                         <button
-                          onClick={() => forceHeartbeat(device.device_id)}
-                          className="action-btn heartbeat-btn"
-                          title="Force Heartbeat"
-                        >
-                          💓 Ping
-                        </button>
-                        <button
                           onClick={() => {
                             setSelectedDevice(device)
                             fetchDeviceLogs(device.id)
@@ -1047,13 +1016,6 @@ const Dashboard = () => {
                         </button>
 
                         <div className="device-actions">
-                          <button
-                            onClick={() => forceHeartbeat(device.device_id)}
-                            className="action-btn heartbeat-btn"
-                            title="Force Heartbeat"
-                          >
-                            💓
-                          </button>
                           <button
                             onClick={() => {
                               setSelectedDevice(device)
